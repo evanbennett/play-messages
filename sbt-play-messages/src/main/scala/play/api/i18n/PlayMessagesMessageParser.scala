@@ -5,12 +5,10 @@
 
 package play.api.i18n
 
+import com.github.evanbennett.sbt_play_messages.PlayMessages.Message
+
 /** Play Messages Message Parser - So that Play's Message Parser can be accessed with a java.io.File. */
 object PlayMessagesMessageParser extends Messages.MessagesParser(null, null) {
-
-	case class Message(key: String, pattern: String)
-
-	case class MessagesAndFile(messages: Seq[Message], file: java.io.File)
 
 	override def parse: Either[play.api.PlayException.ExceptionSource, Seq[Messages.Message]] = throw new UnsupportedOperationException
 

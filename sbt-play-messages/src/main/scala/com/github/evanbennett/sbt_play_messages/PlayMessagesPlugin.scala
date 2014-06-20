@@ -10,6 +10,7 @@ import sbt._
 object PlayMessagesPlugin {
 
 	object PlayMessagesKeys {
+		val requireDefaultMessagesFile = SettingKey[Boolean]("play-messages-require-default-messages-file", "Require a default messages files?")
 		val checkApplicationLanguages = SettingKey[Boolean]("play-messages-check-application-languages", "Check 'application.langs' from 'application.conf' against messages files?")
 		val checkDuplicateKeys = SettingKey[Boolean]("play-messages-check-duplicate-keys", "Check if there are any duplicate keys?")
 		val checkKeyConsistency = SettingKey[Boolean]("play-messages-check-key-consistency", "Check that all the keys match across all messages files?")
@@ -26,6 +27,7 @@ object PlayMessagesPlugin {
 	}
 
 	val projectSettings = Seq(
+		PlayMessagesKeys.requireDefaultMessagesFile := true,
 		PlayMessagesKeys.checkApplicationLanguages := true,
 		PlayMessagesKeys.checkDuplicateKeys := true,
 		PlayMessagesKeys.checkKeyConsistency := true,
@@ -56,7 +58,7 @@ object PlayMessagesPluginScala extends AutoPlugin {
 		PlayMessagesPlugin.PlayMessagesKeys.generateScala := true,
 
 		// TODO: Work out how to use the 'version' specified in the build.sbt. Also, update below for java libary.
-		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-scala" % "1.0.0-RC1"
+		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-scala" % "1.0.0-RC2"
 	)
 }
 
@@ -71,6 +73,6 @@ object PlayMessagesPluginJava extends AutoPlugin {
 	override lazy val projectSettings = PlayMessagesPlugin.projectSettings ++ Seq(
 		PlayMessagesPlugin.PlayMessagesKeys.generateScala := false,
 
-		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-java" % "1.0.0-RC1"
+		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-java" % "1.0.0-RC2"
 	)
 }

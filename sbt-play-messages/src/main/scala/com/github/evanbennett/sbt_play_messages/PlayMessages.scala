@@ -6,7 +6,6 @@
 package com.github.evanbennett.sbt_play_messages
 
 import PlayMessagesPlugin.PlayMessagesKeys
-import play.api.i18n.PlayMessagesMessageParser.MessagesAndFile
 import sbt._
 
 /**
@@ -15,6 +14,8 @@ import sbt._
 object PlayMessages {
 
 	val MESSAGES_FILENAME = "messages"
+
+	case class Message(key: String, pattern: String)
 
 	private def listFilesRecursively(folder: File): Array[File] = {
 		val (subFolders, files) = IO.listFiles(folder).partition(_.isDirectory)
@@ -43,7 +44,7 @@ object PlayMessages {
 			log.debug("Loading messages files.")
 			val confDirectory = play.PlayImport.PlayKeys.confDirectory.value
 			val messagesFiles = IO.listFiles(confDirectory).filter(_.getName.startsWith(MESSAGES_FILENAME)).sortBy(_.getName)
-			if (messagesFiles.nonEmpty && messagesFiles.head.getName != MESSAGES_FILENAME) {
+			if (messagesFiles.nonEmpty && PlayMessagesKeys.requireDefaultMessagesFile.value && messagesFiles.head.getName != MESSAGES_FILENAME) {
 				log.error("The default messages file must exist. [" + confDirectory + java.io.File.separator + MESSAGES_FILENAME + "]")
 				Array.empty
 			} else {
@@ -52,7 +53,7 @@ object PlayMessages {
 			}
 		}
 
-		val messages: Seq[play.api.i18n.PlayMessagesMessageParser.Message] = {
+		val defaultMessages: Seq[Message] = {
 			log.info("Loading default messages.")
 			if (messagesFiles.isEmpty) Nil
 			else play.api.i18n.PlayMessagesMessageParser.parse(messagesFiles.head) match {
@@ -65,7 +66,7 @@ object PlayMessages {
 			}
 		}
 
-		val messageKeysSorted = messages.map(_.key).sorted
+		val messageKeysSorted = defaultMessages.map(_.key).sorted
 
 		if (messagesFiles.nonEmpty) {
 			if (PlayMessagesKeys.checkApplicationLanguages.value) {
@@ -74,7 +75,7 @@ object PlayMessages {
 				// -Dconfig.resource (relative in classpath); -Dconfig.file (absolute path); -Dconfig.url (URL); -Dapplication.langs=something
 			}
 
-			val languageSpecificMessages: Array[MessagesAndFile] = {
+			val languageSpecificMessages: Array[(Seq[Message], File)] = {
 				if (messagesFiles.length < 2) Array.empty
 				else {
 					log.info("Loading non-default messages.")
@@ -82,10 +83,10 @@ object PlayMessages {
 						play.api.i18n.PlayMessagesMessageParser.parse(messagesFile) match {
 							case Left(ex) =>
 								log.error("Exception parsing a messages file [" + messagesFile + "].")
-								MessagesAndFile(Nil, messagesFile)
+								(Nil, messagesFile)
 							case Right(messages) =>
 								log.debug("Loaded [" + messages.length + "] messages from [" + messagesFile + "].")
-								MessagesAndFile(messages, messagesFile)
+								(messages, messagesFile)
 						}
 					}
 				}
@@ -93,10 +94,11 @@ object PlayMessages {
 
 			if (PlayMessagesKeys.checkDuplicateKeys.value) {
 				log.info("Checking for duplicate keys.")
-				(MessagesAndFile(messages, messagesFiles.head) +: languageSpecificMessages).foreach { messagesAndFile =>
-					val duplicateMessageKeys = messagesAndFile.messages.groupBy(_.key).filter(_._2.length > 1).keys
-					if (duplicateMessageKeys.nonEmpty) log.warn("Messages file [" + messagesAndFile.file + "] contains duplicate keys [" + duplicateMessageKeys.mkString("; ") + "].")
-					else log.debug("Messages file [" + messagesAndFile.file + "] contains no duplicate keys.")
+				((defaultMessages, messagesFiles.head) +: languageSpecificMessages).foreach {
+					case (messages: Seq[Message], file: File) =>
+						val duplicateMessageKeys = messages.groupBy(_.key).filter(_._2.length > 1).keys
+						if (duplicateMessageKeys.nonEmpty) log.warn("Messages file [" + file + "] contains duplicate keys [" + duplicateMessageKeys.mkString("; ") + "].")
+						else log.debug("Messages file [" + file + "] contains no duplicate keys.")
 				}
 			}
 
@@ -105,13 +107,14 @@ object PlayMessages {
 				val skipFilenames = PlayMessagesKeys.checkKeyConsistencySkipFilenames.value
 				val nonexistentFilenames = skipFilenames -- messagesFiles.map(_.getName)
 				if (nonexistentFilenames.nonEmpty) log.warn("'checkKeyConsistencySkipFilenames' contains filenames that do not exist.")
-				languageSpecificMessages.filterNot(messagesAndFile => skipFilenames.contains(messagesAndFile.file.getName)) foreach { messagesAndFile =>
-					val currentMessageKeys = messagesAndFile.messages.map(_.key)
-					val missingKeys = messageKeysSorted.diff(currentMessageKeys)
-					if (missingKeys.nonEmpty) log.warn("Messages file [" + messagesAndFile.file + "] is missing some keys. [" + missingKeys.mkString("; ") + "]")
-					val extraKeys = currentMessageKeys.diff(messageKeysSorted)
-					if (extraKeys.nonEmpty) log.warn("Messages file [" + messagesAndFile.file + "] contains keys [" + extraKeys.mkString("; ") + "] not in the default messages file.")
-					if (missingKeys.isEmpty && extraKeys.isEmpty) log.debug("Messages file [" + messagesAndFile.file + "] is ok.")
+				languageSpecificMessages.filterNot(tmp => skipFilenames.contains(tmp._2.getName)).foreach {
+					case (messages: Seq[Message], file: File) =>
+						val currentMessageKeys = messages.map(_.key)
+						val missingKeys = messageKeysSorted.diff(currentMessageKeys)
+						if (missingKeys.nonEmpty) log.warn("Messages file [" + file + "] is missing some keys. [" + missingKeys.mkString("; ") + "]")
+						val extraKeys = currentMessageKeys.diff(messageKeysSorted)
+						if (extraKeys.nonEmpty) log.warn("Messages file [" + file + "] contains keys [" + extraKeys.mkString("; ") + "] not in the default messages file.")
+						if (missingKeys.isEmpty && extraKeys.isEmpty) log.debug("Messages file [" + file + "] is ok.")
 				}
 			}
 
@@ -138,7 +141,7 @@ object PlayMessages {
 
 		val generatedObjectFile = (Keys.sourceManaged in Compile).value / (PlayMessagesKeys.generatedObject.value.replace('.', '/') + (if (generateScala) ".scala" else ".java"))
 
-		if (!PlayMessagesKeys.generateObject.value || messages.isEmpty) {
+		if (!PlayMessagesKeys.generateObject.value || defaultMessages.isEmpty) {
 			if (generatedObjectFile.exists) {
 				IO.delete(generatedObjectFile)
 				log.debug("Deleted existing generatedObjectFile [" + generatedObjectFile + "].")

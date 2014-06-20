@@ -143,7 +143,15 @@ TwirlKeys.templateImports := (TwirlKeys.templateImports.value.diff(Seq("play.api
 Configuration
 -------------
 
-The following settings can be applied by adding the provided line to your build.sbt file.
+The following settings can be modified by adding the provided line to your build.sbt file.
+
+### Require Default Message File
+
+The requiring of a default messages file can be disabled by adding the following to your build configuration:
+
+```scala
+PlayMessagesKeys.requireDefaultMessagesFile := false
+```
 
 ### Duplicate Key Checking
 
