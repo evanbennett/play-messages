@@ -15,6 +15,8 @@ object PlayMessages {
 
 	val MESSAGES_FILENAME = "messages"
 
+	val APPLICATION_LANGS_CONFIGURATION_KEY = "application.langs"
+
 	case class Message(key: String, pattern: String)
 
 	private def listFilesRecursively(folder: File): Array[File] = {
@@ -54,27 +56,54 @@ object PlayMessages {
 		}
 
 		val defaultMessages: Seq[Message] = {
-			log.info("Loading default messages.")
 			if (messagesFiles.isEmpty) Nil
-			else play.api.i18n.PlayMessagesMessageParser.parse(messagesFiles.head) match {
-				case Left(ex) =>
-					log.error("Exception parsing the default messages file [" + messagesFiles.head + "].")
-					Nil
-				case Right(messages) =>
-					log.debug("Loaded [" + messages.length + "] default messages.")
-					messages
+			else {
+				log.info("Loading default messages.")
+				play.api.i18n.PlayMessagesMessageParser.parse(messagesFiles.head) match {
+					case Left(ex) =>
+						log.error("Exception parsing the default messages file [" + messagesFiles.head + "].")
+						Nil
+					case Right(messages) =>
+						log.debug("Loaded [" + messages.length + "] default messages.")
+						messages
+				}
 			}
 		}
 
-		val messageKeysSorted = defaultMessages.map(_.key).sorted
+		var requiresKeyConsistency = false // If there is no default messages file 
+
+		if (PlayMessagesKeys.checkApplicationLanguages.value) {
+			log.info("Checking 'application.langs' configuration.")
+			// TODO: This does not appear to handle sbt options: -Dconfig.resource (relative in classpath); -Dconfig.file (absolute path); -Dconfig.url (URL); -Dapplication.langs=something
+			play.api.Configuration.load(Keys.baseDirectory.value).getString(APPLICATION_LANGS_CONFIGURATION_KEY) match {
+				case None =>
+					if (messagesFiles.nonEmpty) log.error("The 'application.langs' configuration could not be detected, but messages files were.")
+				case Some(setting) =>
+					val applicationLangs = setting.split(",").map(_.trim).toBuffer
+					val hasDefaultMessagesFile = messagesFiles.head.getName == MESSAGES_FILENAME
+					(if (hasDefaultMessagesFile) messagesFiles.tail else messagesFiles).foreach { messagesFile =>
+						val fileLanguage = messagesFile.getName.substring(MESSAGES_FILENAME.length + 1) // + 1 for the '.'
+						if (applicationLangs.contains(fileLanguage)) applicationLangs -= fileLanguage
+						else log.warn("Messages file [" + messagesFile.getName + "] language is not listed in the 'application.langs' configuration.")
+					}
+					if (applicationLangs.isEmpty) {
+						if (hasDefaultMessagesFile) {
+							log.debug("The 'application.langs' configuration languages all match language specific messages files, and you have a default messages file.")
+						} else {
+							log.debug("The 'application.langs' configuration languages all match language specific messages files. You do not have a default messages file. Key consistency is required.")
+							requiresKeyConsistency
+						}
+					} else if (applicationLangs.length == 1 && hasDefaultMessagesFile) {
+						log.debug("The 'application.langs' configuration languages match the language specific messages files or the default messages file.")
+					} else {
+						log.error("The 'application.langs' configuration has languages [" + applicationLangs.mkString(";") + "] missing messages files.")
+					}
+			}
+		}
+
+		val defaultMessageKeysDistinctSorted = defaultMessages.map(_.key).distinct.sorted
 
 		if (messagesFiles.nonEmpty) {
-			if (PlayMessagesKeys.checkApplicationLanguages.value) {
-				log.debug("Checking 'application.langs'. -- Not yet implemented.")
-				// TODO: Load 'application.langs' from 'application.conf' and validate against 'messagesFiles'
-				// -Dconfig.resource (relative in classpath); -Dconfig.file (absolute path); -Dconfig.url (URL); -Dapplication.langs=something
-			}
-
 			val languageSpecificMessages: Array[(Seq[Message], File)] = {
 				if (messagesFiles.length < 2) Array.empty
 				else {
@@ -109,10 +138,14 @@ object PlayMessages {
 				if (nonexistentFilenames.nonEmpty) log.warn("'checkKeyConsistencySkipFilenames' contains filenames that do not exist.")
 				languageSpecificMessages.filterNot(tmp => skipFilenames.contains(tmp._2.getName)).foreach {
 					case (messages: Seq[Message], file: File) =>
-						val currentMessageKeys = messages.map(_.key)
-						val missingKeys = messageKeysSorted.diff(currentMessageKeys)
-						if (missingKeys.nonEmpty) log.warn("Messages file [" + file + "] is missing some keys. [" + missingKeys.mkString("; ") + "]")
-						val extraKeys = currentMessageKeys.diff(messageKeysSorted)
+						val currentMessageKeys = messages.map(_.key).distinct
+						val missingKeys = defaultMessageKeysDistinctSorted.diff(currentMessageKeys)
+						if (missingKeys.nonEmpty) {
+							val msg = "Messages file [" + file + "] is missing some keys. [" + missingKeys.mkString("; ") + "]"
+							if (requiresKeyConsistency) log.error(msg)
+							else log.warn(msg)
+						}
+						val extraKeys = currentMessageKeys.diff(defaultMessageKeysDistinctSorted)
 						if (extraKeys.nonEmpty) log.warn("Messages file [" + file + "] contains keys [" + extraKeys.mkString("; ") + "] not in the default messages file.")
 						if (missingKeys.isEmpty && extraKeys.isEmpty) log.debug("Messages file [" + file + "] is ok.")
 				}
@@ -130,7 +163,7 @@ object PlayMessages {
 					val referencedMessageKeys = sourceFiles.flatMap { file =>
 						messagesReferenceRegex.findAllMatchIn(IO.readLines(file).mkString).map(_.group(1)).toSeq
 					}.distinct
-					val remainingMessageKeys = messageKeysSorted.filterNot(messageKey => ignoreKeys.exists(messageKey.matches(_))).diff(referencedMessageKeys)
+					val remainingMessageKeys = defaultMessageKeysDistinctSorted.filterNot(messageKey => ignoreKeys.exists(messageKey.matches(_))).diff(referencedMessageKeys)
 					if (remainingMessageKeys.nonEmpty) log.warn("Some message keys [" + remainingMessageKeys.mkString("; ") + "] are not used.")
 					else log.debug("All messages keys that are not to be ignored are used.")
 				}
@@ -161,7 +194,7 @@ object PlayMessages {
 				   |
 				   |""".stripMargin +
 				// Output message values.
-				messageKeysSorted.map { messageKey =>
+				defaultMessageKeysDistinctSorted.map { messageKey =>
 					val messageKeyParts = messageKey.split('.')
 					var matchesSoFar = true
 					"" +
@@ -206,7 +239,7 @@ object PlayMessages {
 				   |
 				   |""".stripMargin +
 				// Output message values.
-				messageKeysSorted.map { messageKey =>
+				defaultMessageKeysDistinctSorted.map { messageKey =>
 					val messageKeyParts = messageKey.split('.')
 					var matchesSoFar = true
 					"" +

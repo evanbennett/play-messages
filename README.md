@@ -153,6 +153,14 @@ The requiring of a default messages file can be disabled by adding the following
 PlayMessagesKeys.requireDefaultMessagesFile := false
 ```
 
+### Application Languages Checking
+
+Checking that the 'application.langs' configuration matches the messages files can be disabled by adding the following to your build configuration:
+
+```scala
+PlayMessagesKeys.checkApplicationLanguages := false
+```
+
 ### Duplicate Key Checking
 
 Duplicate key checking can be disabled by adding the following to your build configuration:
