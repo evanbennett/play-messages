@@ -24,33 +24,34 @@ object PlayMessages {
 		files ++ subFolders.flatMap(listFilesRecursively)
 	}
 
-	val checkAndGenerateTask: Def.Initialize[Task[Seq[File]]] = Def.task {
+	private def parseGeneratedObjectTask(generatedObject: String, log: Logger): (String, String) = {
+		log.debug("Parsing 'PlayMessagesKeys.generatedObject'.")
+		if (generatedObject == null || generatedObject.isEmpty || !generatedObject.contains(".")) {
+			log.error("'generatedObject' must contain an object package and name.")
+			(null, null)
+		} else {
+			val dotLastIndex = generatedObject.lastIndexOf(".")
+			val _package = generatedObject.take(dotLastIndex)
+			val name = generatedObject.drop(dotLastIndex + 1)
+			log.debug("_package [" + _package + "] name [" + name + "]")
+			(_package, name)
+		}
+	}
+
+	val checkTask: Def.Initialize[Task[Seq[String]]] = Def.task {
 		val log = Keys.streams.value.log
 
-		val (generatedObjectPackage, generatedObjectName): (String, String) = {
-			log.debug("Parsing 'PlayMessagesKeys.generatedObject'.")
-			val generatedObject = PlayMessagesKeys.generatedObject.value
-			if (generatedObject == null || generatedObject.isEmpty || !generatedObject.contains(".")) {
-				log.error("'generatedObject' must contain an object package and name.")
-				(null, null)
-			} else {
-				val dotLastIndex = generatedObject.lastIndexOf(".")
-				val _package = generatedObject.take(dotLastIndex)
-				val name = generatedObject.drop(dotLastIndex + 1)
-				log.debug("_package [" + _package + "]; name [" + name + "].")
-				(_package, name)
-			}
-		}
+		val (_, generatedObjectName) = parseGeneratedObjectTask(PlayMessagesKeys.generatedObject.value, log)
 
 		val messagesFiles: Array[File] = {
 			log.debug("Loading messages files.")
 			val confDirectory = play.PlayImport.PlayKeys.confDirectory.value
 			val messagesFiles = IO.listFiles(confDirectory).filter(_.getName.startsWith(MESSAGES_FILENAME)).sortBy(_.getName)
 			if (messagesFiles.nonEmpty && PlayMessagesKeys.requireDefaultMessagesFile.value && messagesFiles.head.getName != MESSAGES_FILENAME) {
-				log.error("The default messages file must exist. [" + confDirectory + java.io.File.separator + MESSAGES_FILENAME + "]")
+				log.error("The default messages file must exist: [" + confDirectory + java.io.File.separator + MESSAGES_FILENAME + "]")
 				Array.empty
 			} else {
-				log.debug("messagesFiles [" + messagesFiles + "].")
+				log.debug("messagesFiles: [" + messagesFiles.mkString("; ") + "]")
 				messagesFiles
 			}
 		}
@@ -61,10 +62,10 @@ object PlayMessages {
 				log.info("Loading default messages.")
 				play.api.i18n.PlayMessagesMessageParser.parse(messagesFiles.head) match {
 					case Left(ex) =>
-						log.error("Exception parsing the default messages file [" + messagesFiles.head + "].")
+						log.error("Exception parsing the default messages file: [" + messagesFiles.head + "]")
 						Nil
 					case Right(messages) =>
-						log.debug("Loaded [" + messages.length + "] default messages.")
+						log.debug("Loaded default messages: [" + messages.length + "]")
 						messages
 				}
 			}
@@ -84,7 +85,7 @@ object PlayMessages {
 					(if (hasDefaultMessagesFile) messagesFiles.tail else messagesFiles).foreach { messagesFile =>
 						val fileLanguage = messagesFile.getName.substring(MESSAGES_FILENAME.length + 1) // + 1 for the '.'
 						if (applicationLangs.contains(fileLanguage)) applicationLangs -= fileLanguage
-						else log.warn("Messages file [" + messagesFile.getName + "] language is not listed in the 'application.langs' configuration.")
+						else log.warn("Messages file language is not listed in the 'application.langs' configuration: [" + messagesFile.getName + "]")
 					}
 					if (applicationLangs.isEmpty) {
 						if (hasDefaultMessagesFile) {
@@ -96,7 +97,7 @@ object PlayMessages {
 					} else if (applicationLangs.length == 1 && hasDefaultMessagesFile) {
 						log.debug("The 'application.langs' configuration languages match the language specific messages files or the default messages file.")
 					} else {
-						log.error("The 'application.langs' configuration has languages [" + applicationLangs.mkString(";") + "] missing messages files.")
+						log.error("The 'application.langs' configuration has languages missing messages files: [" + applicationLangs.mkString("; ") + "]")
 					}
 			}
 		}
@@ -111,10 +112,10 @@ object PlayMessages {
 					messagesFiles.tail.map { messagesFile =>
 						play.api.i18n.PlayMessagesMessageParser.parse(messagesFile) match {
 							case Left(ex) =>
-								log.error("Exception parsing a messages file [" + messagesFile + "].")
+								log.error("Exception parsing a messages file: [" + messagesFile + "]")
 								(Nil, messagesFile)
 							case Right(messages) =>
-								log.debug("Loaded [" + messages.length + "] messages from [" + messagesFile + "].")
+								log.debug("Loaded messages: [" + messagesFile + "] [" + messages.length + "]")
 								(messages, messagesFile)
 						}
 					}
@@ -126,8 +127,8 @@ object PlayMessages {
 				((defaultMessages, messagesFiles.head) +: languageSpecificMessages).foreach {
 					case (messages: Seq[Message], file: File) =>
 						val duplicateMessageKeys = messages.groupBy(_.key).filter(_._2.length > 1).keys
-						if (duplicateMessageKeys.nonEmpty) log.warn("Messages file [" + file + "] contains duplicate keys [" + duplicateMessageKeys.mkString("; ") + "].")
-						else log.debug("Messages file [" + file + "] contains no duplicate keys.")
+						if (duplicateMessageKeys.nonEmpty) log.warn("Messages file contains duplicate keys: [" + file + "] [" + duplicateMessageKeys.mkString("; ") + "].")
+						else log.debug("Messages file contains no duplicate keys: [" + file + "]")
 				}
 			}
 
@@ -141,13 +142,13 @@ object PlayMessages {
 						val currentMessageKeys = messages.map(_.key).distinct
 						val missingKeys = defaultMessageKeysDistinctSorted.diff(currentMessageKeys)
 						if (missingKeys.nonEmpty) {
-							val msg = "Messages file [" + file + "] is missing some keys. [" + missingKeys.mkString("; ") + "]"
+							val msg = "Messages file is missing some keys: [" + file + "] [" + missingKeys.mkString("; ") + "]"
 							if (requiresKeyConsistency) log.error(msg)
 							else log.warn(msg)
 						}
 						val extraKeys = currentMessageKeys.diff(defaultMessageKeysDistinctSorted)
-						if (extraKeys.nonEmpty) log.warn("Messages file [" + file + "] contains keys [" + extraKeys.mkString("; ") + "] not in the default messages file.")
-						if (missingKeys.isEmpty && extraKeys.isEmpty) log.debug("Messages file [" + file + "] is ok.")
+						if (extraKeys.nonEmpty) log.warn("Messages file contains keys not in the default messages file: [" + file + "] [" + extraKeys.mkString("; ") + "]")
+						if (missingKeys.isEmpty && extraKeys.isEmpty) log.debug("Messages file is ok: [" + file + "]")
 				}
 			}
 
@@ -164,26 +165,56 @@ object PlayMessages {
 						messagesReferenceRegex.findAllMatchIn(IO.readLines(file).mkString).map(_.group(1)).toSeq
 					}.distinct
 					val remainingMessageKeys = defaultMessageKeysDistinctSorted.filterNot(messageKey => ignoreKeys.exists(messageKey.matches(_))).diff(referencedMessageKeys)
-					if (remainingMessageKeys.nonEmpty) log.warn("Some message keys [" + remainingMessageKeys.mkString("; ") + "] are not used.")
+					if (remainingMessageKeys.nonEmpty) log.warn("Some message keys are not used: [" + remainingMessageKeys.mkString("; ") + "]")
 					else log.debug("All messages keys that are not to be ignored are used.")
 				}
 			}
 		}
 
-		val generateScala = PlayMessagesKeys.generateScala.value
+		defaultMessageKeysDistinctSorted
+	}
 
-		val generatedObjectFile = (Keys.sourceManaged in Compile).value / (PlayMessagesKeys.generatedObject.value.replace('.', '/') + (if (generateScala) ".scala" else ".java"))
+	private def deleteObjectFile(generatedObjectFile: File, log: Logger): Seq[File] = {
+		if (generatedObjectFile.exists) {
+			IO.delete(generatedObjectFile)
+			log.debug("Deleted existing generatedObjectFile: [" + generatedObjectFile + "]")
+		}
+		Nil
+	}
 
-		if (!PlayMessagesKeys.generateObject.value || defaultMessages.isEmpty) {
+	private def writeObjectFile(newObjectContent: String, generatedObjectFile: File, log: Logger): Seq[File] = {
+		val currentObjectContent: String = {
 			if (generatedObjectFile.exists) {
-				IO.delete(generatedObjectFile)
-				log.debug("Deleted existing generatedObjectFile [" + generatedObjectFile + "].")
+				log.debug("Loading existing generatedObjectFile: [" + generatedObjectFile + "]")
+				IO.readLines(generatedObjectFile).mkString
+			} else {
+				IO.createDirectory(generatedObjectFile.getParentFile)
+				log.debug("Creating new generatedObjectFile: [" + generatedObjectFile + "]")
+				null
 			}
-			Nil
-		} else {
-			log.info("Generating object.")
+		}
+		if (newObjectContent != currentObjectContent) {
+			IO.write(generatedObjectFile, newObjectContent)
+			log.debug("generatedObjectFile written: [" + generatedObjectFile + "]")
+		}
+
+		Seq(generatedObjectFile)
+	}
+
+	val checkAndGenerateScalaTask: Def.Initialize[Task[Seq[File]]] = Def.task {
+		val log = Keys.streams.value.log
+
+		val (generatedObjectPackage, generatedObjectName) = parseGeneratedObjectTask(PlayMessagesKeys.generatedObject.value, log)
+
+		val defaultMessageKeysDistinctSorted = checkTask.value
+
+		val generatedObjectFile = (Keys.sourceManaged in Compile).value / (PlayMessagesKeys.generatedObject.value.replace('.', '/') + ".scala")
+
+		if (!PlayMessagesKeys.generateObject.value || defaultMessageKeysDistinctSorted.isEmpty) deleteObjectFile(generatedObjectFile, log)
+		else {
+			log.info("Generating Scala object.")
 			val currentObjectNesting = scala.collection.mutable.ArrayBuffer.empty[String]
-			val objectContent = if (generateScala) "" + // Scala Output
+			val objectContent = "" +
 				// Open root object and generated classes.
 				s"""package $generatedObjectPackage
 				   |
@@ -216,7 +247,25 @@ object PlayMessages {
 				(for (i <- currentObjectNesting.length until 0 by -1) yield ("	" * i) + "}\n").mkString +
 				// Close root object.
 				"}"
-			else "" + // Java Output
+
+			writeObjectFile(objectContent, generatedObjectFile, log)
+		}
+	}
+
+	val checkAndGenerateJavaTask: Def.Initialize[Task[Seq[File]]] = Def.task {
+		val log = Keys.streams.value.log
+
+		val (generatedObjectPackage, generatedObjectName) = parseGeneratedObjectTask(PlayMessagesKeys.generatedObject.value, log)
+
+		val defaultMessageKeysDistinctSorted = checkTask.value
+
+		val generatedObjectFile = (Keys.sourceManaged in Compile).value / (PlayMessagesKeys.generatedObject.value.replace('.', '/') + ".java")
+
+		if (!PlayMessagesKeys.generateObject.value || defaultMessageKeysDistinctSorted.isEmpty) deleteObjectFile(generatedObjectFile, log)
+		else {
+			log.info("Generating Java object.")
+			val currentObjectNesting = scala.collection.mutable.ArrayBuffer.empty[String]
+			val objectContent = "" +
 				// Open root object and generated classes.
 				s"""package $generatedObjectPackage;
 				   |
@@ -271,22 +320,7 @@ object PlayMessages {
 				// Close root object.
 				"}"
 
-			val currentObjectContent: String = {
-				if (generatedObjectFile.exists) {
-					log.debug("Loading existing generatedObjectFile [" + generatedObjectFile + "].")
-					IO.readLines(generatedObjectFile).mkString
-				} else {
-					IO.createDirectory(generatedObjectFile.getParentFile)
-					log.debug("Creating new generatedObjectFile [" + generatedObjectFile + "].")
-					null
-				}
-			}
-			if (objectContent != currentObjectContent) {
-				IO.write(generatedObjectFile, objectContent)
-				log.debug("generatedObjectFile [" + generatedObjectFile + "] written.")
-			}
-
-			Seq(generatedObjectFile)
+			writeObjectFile(objectContent, generatedObjectFile, log)
 		}
 	}
 }

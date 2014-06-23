@@ -20,8 +20,6 @@ object PlayMessagesPlugin {
 		val checkKeysUsedIgnoreFilenames = SettingKey[Set[String]]("play-messages-check-keys-used-ignore-filenames", "Source code filenames to ignore when checking for use.")
 		val generateObject = SettingKey[Boolean]("play-messages-generate-object", "Generate the object with key references?")
 		val generatedObject = SettingKey[String]("play-messages-generated-object", "The object package and name to generate.")
-		// TODO: A user changing the 'generateScala' setting will change the generated language, but will not change the provided 'libraryDependencies'. Work out how to remove this setting.
-		val generateScala = SettingKey[Boolean]("play-messages-generate-scala", "Generate Scala code (or else Java)?")
 
 		val checkAndGenerateTask = TaskKey[Seq[File]]("play-messages-check-and-generate-task", "Check the messages and generate the object with key references.")
 	}
@@ -38,8 +36,6 @@ object PlayMessagesPlugin {
 		PlayMessagesKeys.generateObject := true,
 		PlayMessagesKeys.generatedObject := "conf.Messages",
 
-		PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateTask.value,
-
 		Keys.sourceGenerators in Compile <+= PlayMessagesKeys.checkAndGenerateTask
 	)
 }
@@ -55,7 +51,7 @@ object PlayMessagesPluginScala extends AutoPlugin {
 	override lazy val trigger = allRequirements
 
 	override lazy val projectSettings = PlayMessagesPlugin.projectSettings ++ Seq(
-		PlayMessagesPlugin.PlayMessagesKeys.generateScala := true,
+		PlayMessagesPlugin.PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateScalaTask.value,
 
 		// TODO: Work out how to use the 'version' specified in the build.sbt. Also, update below for java libary.
 		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-scala" % "1.0.0-RC2"
@@ -71,7 +67,7 @@ object PlayMessagesPluginJava extends AutoPlugin {
 	override lazy val trigger = allRequirements
 
 	override lazy val projectSettings = PlayMessagesPlugin.projectSettings ++ Seq(
-		PlayMessagesPlugin.PlayMessagesKeys.generateScala := false,
+		PlayMessagesPlugin.PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateJavaTask.value,
 
 		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-java" % "1.0.0-RC2"
 	)
