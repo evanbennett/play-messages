@@ -1,8 +1,10 @@
+val buildVersion = "1.0.0-RC2" // Needs to be in-sync with 'PlayMessagesPlugin.BUILD_VERSION'
+
 val commonSettings = Seq(
 	organization := "com.github.evanbennett",
 	licenses := Seq("BSD 3-Clause License" -> url("http://opensource.org/licenses/BSD-3-Clause")),
 	scmInfo := Some(ScmInfo(url("https://github.com/evanbennett/play-messages"), "git://github.com/evanbennett/play-messages.git")),
-	version := "1.0.0-RC2",
+	version := buildVersion,
 	scalaVersion := "2.10.4",
 	scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 	publishMavenStyle := true,

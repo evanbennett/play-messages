@@ -9,6 +9,8 @@ import sbt._
 
 object PlayMessagesPlugin {
 
+	val BUILD_VERSION = "1.0.0-RC2" // Needs to be in-sync with 'buildVersion' in build.sbt
+
 	object PlayMessagesKeys {
 		val requireDefaultMessagesFile = SettingKey[Boolean]("play-messages-require-default-messages-file", "Require a default messages files?")
 		val checkApplicationLanguages = SettingKey[Boolean]("play-messages-check-application-languages", "Check 'application.langs' from 'application.conf' against messages files?")
@@ -53,14 +55,13 @@ object PlayMessagesPluginScala extends AutoPlugin {
 	override lazy val projectSettings = PlayMessagesPlugin.projectSettings ++ Seq(
 		PlayMessagesPlugin.PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateScalaTask.value,
 
-		// TODO: Work out how to use the 'version' specified in the build.sbt. Also, update below for java libary.
-		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-scala" % "1.0.0-RC2"
+		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-scala" % PlayMessagesPlugin.BUILD_VERSION
 	)
 }
 
 object PlayMessagesPluginJava extends AutoPlugin {
 
-	// autoImport is not needed as it exists in PlayMessagesPluginScala
+	// 'object autoImport' is not needed as it exists in PlayMessagesPluginScala
 
 	override lazy val requires = play.PlayJava
 
@@ -69,6 +70,6 @@ object PlayMessagesPluginJava extends AutoPlugin {
 	override lazy val projectSettings = PlayMessagesPlugin.projectSettings ++ Seq(
 		PlayMessagesPlugin.PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateJavaTask.value,
 
-		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-java" % "1.0.0-RC2"
+		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-java" % PlayMessagesPlugin.BUILD_VERSION
 	)
 }
