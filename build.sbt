@@ -24,7 +24,10 @@ val commonSettings = Seq(
 // TODO: Sort out the cross building error: Play SBT Plugin is not available for 2.11.1. This does not break anything. It only errors on the project that I would disable if I could.
 crossScalaVersions := Seq("2.10.4", "2.11.1")
 
-lazy val root = project.in(file(".")).aggregate(sbtPlayMessages, playMessagesScala, playMessagesJava).settings(publishArtifact := false)
+lazy val root = project.in(file(".")).aggregate(sbtPlayMessages, playMessagesScala, playMessagesJava).settings(
+	publishArtifact := false,
+	publishTo := Some(Resolver.file("Unused transient repository", file("target/unusedrepo")))
+)
 
 val sbtPlayMessages = project.in(file("sbt-play-messages")).settings(commonSettings: _*).settings(
 	name := "sbt-play-messages",
