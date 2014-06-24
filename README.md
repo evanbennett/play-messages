@@ -117,7 +117,7 @@ Adding the plugin
 Add the plugin to `project/plugins.sbt`. For example:
 
 ```scala
-addSbtPlugin("com.github.evanbennett" % "sbt-play-messages" % "1.0.0-RC1")
+addSbtPlugin("com.github.evanbennett" % "sbt-play-messages" % "1.0.0-RC2")
 ```
 
 Your project's build needs to enable a Play SBT plugin. For example in your build.sbt:
