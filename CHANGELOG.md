@@ -1,5 +1,14 @@
-sbt-play-messages Changelog
+play-messages Changelog
 ===========================
+
+v1.1.0-RC1 | 2014-07-18
+
+ * Detect if the message configuration and messages files have changed. If not, skip processing.
+ * Added 'checkMessages' and 'generateMessagesObject' Commands.
+ * Added a Status return value to the Tasks.
+ * Merged the Scala and Java libraries.
+ * Remove the Java specific Message class as the Scala version can be used.
+ * Added a 'onNoChangeLoadDefaultMessageKeys' setting for SBT Plugins that extend this Plugin.
 
 v1.0.0-RC2 | 2014-06-24
 

@@ -1,4 +1,7 @@
-val buildVersion = "1.0.0-RC2" // Needs to be in-sync with 'PlayMessagesPlugin.BUILD_VERSION'
+val buildVersion = "1.1.0-RC1" // Needs to be in-sync with 'PlayMessagesPlugin.BUILD_VERSION'
+
+// TODO: Sort out the cross building error: Play SBT Plugin is not available for 2.11.1. This does not break anything. It only errors on the project that I would disable if I could.
+crossScalaVersions := Seq("2.10.4", "2.11.1")
 
 val commonSettings = Seq(
 	organization := "com.github.evanbennett",
@@ -21,12 +24,9 @@ val commonSettings = Seq(
 		</developers>
 )
 
-// TODO: Sort out the cross building error: Play SBT Plugin is not available for 2.11.1. This does not break anything. It only errors on the project that I would disable if I could.
-crossScalaVersions := Seq("2.10.4", "2.11.1")
-
-lazy val root = project.in(file(".")).aggregate(sbtPlayMessages, playMessagesScala, playMessagesJava).settings(
+lazy val root = project.in(file(".")).aggregate(sbtPlayMessages, playMessagesLibrary).settings(
 	publishArtifact := false,
-	publishTo := Some(Resolver.file("Unused transient repository", file("target/unusedrepo")))
+	publishTo := Some(Resolver.file("Unused transient repository", file("target/unusedRepo")))
 )
 
 val sbtPlayMessages = project.in(file("sbt-play-messages")).settings(commonSettings: _*).settings(
@@ -39,16 +39,10 @@ val sbtPlayMessages = project.in(file("sbt-play-messages")).settings(commonSetti
 	libraryDependencies += "com.typesafe.play" %% "play" % "2.3.0"
 )
 
-val playMessagesScala = project.in(file("play-messages-scala")).settings(commonSettings: _*).settings(
-	name := "play-messages-scala",
-	description := "A small Scala library intended for use with the 'sbt-play-messages' SBT plugin.",
-	homepage := Some(url("https://github.com/evanbennett/play-messages/play-messages-scala")),
+val playMessagesLibrary = project.in(file("play-messages-library")).settings(commonSettings: _*).settings(
+	name := "play-messages-library",
+	description := "A small library intended for use with the 'sbt-play-messages' SBT plugin.",
+	homepage := Some(url("https://github.com/evanbennett/play-messages/play-messages-library")),
 	resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
 	libraryDependencies += "com.typesafe.play" %% "play" % "2.3.0"
-)
-
-val playMessagesJava = project.in(file("play-messages-java")).dependsOn(playMessagesScala).settings(commonSettings: _*).settings(
-	name := "play-messages-java",
-	description := "A small Java library intended for use with the 'sbt-play-messages' SBT plugin.",
-	homepage := Some(url("https://github.com/evanbennett/play-messages/play-messages-java"))
 )

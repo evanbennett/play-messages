@@ -17,11 +17,50 @@ This plugin can:
 Compatibility
 -------------
 
-Can be used with the [Play Framework][play] 2.3.
+Can be used with the [Play Framework][play] 2.3.x.
 
 Requires [SBT][sbt] 0.13.5.
 
 Generates code in Scala or Java.
+
+Adding the plugin
+-----------------
+
+Add the plugin to `project/plugins.sbt`. For example:
+
+```scala
+addSbtPlugin("com.github.evanbennett" % "sbt-play-messages" % "1.1.0-RC1")
+```
+
+Your project's build needs to enable a Play SBT plugin. For example in your build.sbt:
+
+for Scala:
+
+```scala
+lazy val root = (project in file(".")).enablePlugins(PlayScala)
+```
+
+or for Java:
+
+```scala
+lazy val root = (project in file(".")).enablePlugins(PlayJava)
+```
+
+To enable seemless usage in your Twirl templates, you could add the following line into your build.sbt:
+
+```scala
+TwirlKeys.templateImports := (TwirlKeys.templateImports.value.diff(Seq("play.api.i18n._")) ++ Seq("conf.Messages", "play.api.i18n.Lang"))
+```
+
+SBT usage
+---------
+
+The checking and generation functionality is automatically run whenever your project is compiled. You can also manually run the functionality using the following:
+
+| Command                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| checkMessages          | Check the project's message setting and messages files.   |
+| generateMessagesObject | Check the messages and then generate the messages object. |
 
 Recommended usage of the generated object
 -----------------------------------------
@@ -46,14 +85,8 @@ import play.i18n.Messages; // Or with the wildcard '*'
 
 To use the generated object, replace this with:
 
-```
-import conf.Messages
-```
-
-To enable seemless usage in your Twirl templates, you could add the following line into your build.sbt:
-
 ```scala
-TwirlKeys.templateImports := (TwirlKeys.templateImports.value.diff(Seq("play.api.i18n._")) ++ Seq("conf.Messages", "play.api.i18n.Lang"))
+import conf.Messages
 ```
 
 **With a 'messages' file containing:**
@@ -109,35 +142,6 @@ You also have the option of using part of the key literally and part variably (o
 String error = "INCORRECT_LENGTH"; // Generated dynamically from some code
 
 Messages.ERRORS.get(error, 2);
-```
-
-Adding the plugin
------------------
-
-Add the plugin to `project/plugins.sbt`. For example:
-
-```scala
-addSbtPlugin("com.github.evanbennett" % "sbt-play-messages" % "1.0.0-RC2")
-```
-
-Your project's build needs to enable a Play SBT plugin. For example in your build.sbt:
-
-for Scala:
-
-```scala
-lazy val root = (project in file(".")).enablePlugins(PlayScala)
-```
-
-or for Java:
-
-```scala
-lazy val root = (project in file(".")).enablePlugins(PlayJava)
-```
-
-To enable seemless usage in your Twirl templates, you could add the following line into your build.sbt:
-
-```scala
-TwirlKeys.templateImports := (TwirlKeys.templateImports.value.diff(Seq("play.api.i18n._")) ++ Seq("conf.Messages", "play.api.i18n.Lang"))
 ```
 
 Configuration

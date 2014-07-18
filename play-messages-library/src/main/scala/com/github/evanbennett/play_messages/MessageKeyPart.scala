@@ -3,7 +3,7 @@
  * All rights reserved.
  */
 
-package com.github.evanbennett.play_messages_scala
+package com.github.evanbennett.play_messages
 
 /**
  * MessageKeyPart
