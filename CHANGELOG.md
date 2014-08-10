@@ -1,6 +1,13 @@
 play-messages Changelog
 ===========================
 
+v1.1.1-RC1 | Upcoming
+
+ * Removed 'checkMessages' and 'generateMessagesObject' Commands.
+ * Moved the Tasks so that they are available directly on the console.
+ * Updated the Plugin object names for consistency.
+ * Removed unnecessary 'resolvers'.
+
 v1.1.0-RC1 | 2014-07-18
 
  * Detect if the message configuration and messages files have changed. If not, skip processing.

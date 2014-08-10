@@ -1,7 +1,7 @@
-val buildVersion = "1.1.0-RC1" // Needs to be in-sync with 'PlayMessagesPlugin.BUILD_VERSION'
+val buildVersion = "1.1.1-SNAPSHOT" // Needs to be in-sync with 'PlayMessagesPlugin.BUILD_VERSION'
 
-// TODO: Sort out the cross building error: Play SBT Plugin is not available for 2.11.1. This does not break anything. It only errors on the project that I would disable if I could.
-crossScalaVersions := Seq("2.10.4", "2.11.1")
+// TODO: Sort out the cross building error: Play SBT Plugin is not available for 2.11. This does not break anything. It only errors on the project that I would disable if I could.
+crossScalaVersions := Seq("2.10.4", "2.11.2")
 
 val commonSettings = Seq(
 	organization := "com.github.evanbennett",
@@ -34,7 +34,6 @@ val sbtPlayMessages = project.in(file("sbt-play-messages")).settings(commonSetti
 	description := "An SBT plugin to check Play messages files for potential problems and generate a references object.",
 	homepage := Some(url("https://github.com/evanbennett/play-messages")),
 	sbtPlugin := true,
-	resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
 	addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.3.0"),
 	libraryDependencies += "com.typesafe.play" %% "play" % "2.3.0"
 )
@@ -43,6 +42,5 @@ val playMessagesLibrary = project.in(file("play-messages-library")).settings(com
 	name := "play-messages-library",
 	description := "A small library intended for use with the 'sbt-play-messages' SBT plugin.",
 	homepage := Some(url("https://github.com/evanbennett/play-messages/play-messages-library")),
-	resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
 	libraryDependencies += "com.typesafe.play" %% "play" % "2.3.0"
 )

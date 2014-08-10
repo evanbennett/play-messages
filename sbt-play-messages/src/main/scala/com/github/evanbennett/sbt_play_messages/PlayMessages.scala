@@ -59,7 +59,7 @@ object PlayMessages {
 		}
 	}
 
-	private[sbt_play_messages] val checkTask: Def.Initialize[Task[(PlayMessagesPlugin.Status, Seq[String])]] = Def.task {
+	private[sbt_play_messages] val checkMessagesTask: Def.Initialize[Task[(PlayMessagesPlugin.Status, Seq[String])]] = Def.task {
 		implicit val state = new State(Keys.streams.value.log)
 
 		val messagesFiles: Array[File] = {
@@ -89,8 +89,10 @@ object PlayMessages {
 			val myCacheFolder = Keys.streams.value.cacheDirectory / CACHE_FOLDER_NAME
 			if (!myCacheFolder.exists) myCacheFolder.mkdirs
 			val myCacheFile = myCacheFolder / CACHE_FILE_NAME
-			if (generatedObjectFile.exists && myCacheFile.exists && IO.read(myCacheFile) == newCacheValue) state.status = NoChange
-			else IO.write(myCacheFile, newCacheValue)
+			if (generatedObjectFile.exists && myCacheFile.exists && IO.read(myCacheFile) == newCacheValue) {
+				state.status = NoChange
+				state.log.info("checkMessages: NO CHANGE")
+			} else IO.write(myCacheFile, newCacheValue)
 
 			val defaultMessages: Seq[Message] = if (state.status != NoChange || PlayMessagesKeys.onNoChangeLoadDefaultMessageKeys.value) loadMessagesFile(messagesFiles.head)._1 else Nil
 
@@ -215,7 +217,7 @@ object PlayMessages {
 	}
 
 	private[sbt_play_messages] val checkAndGenerateScalaTask: Def.Initialize[Task[(PlayMessagesPlugin.Status, Seq[File])]] = Def.task {
-		val (status, messageKeys) = PlayMessagesKeys.checkTask.value
+		val (status, messageKeys) = checkTask.value
 
 		implicit val state = new State(Keys.streams.value.log)
 
@@ -224,6 +226,7 @@ object PlayMessages {
 		val generatedObjectFile = (Keys.sourceManaged in Compile).value / (PlayMessagesKeys.generatedObject.value.replace('.', '/') + ".scala")
 
 		if (status == NoChange) {
+			state.log.info("generateMessagesObject: NO CHANGE")
 			(status, if (generatedObjectFile.exists) Seq(generatedObjectFile) else Nil)
 		} else if (!PlayMessagesKeys.generateObject.value || messageKeys.isEmpty) {
 			(status, deleteFile(generatedObjectFile))
@@ -271,13 +274,14 @@ object PlayMessages {
 	private[sbt_play_messages] val checkAndGenerateJavaTask: Def.Initialize[Task[(PlayMessagesPlugin.Status, Seq[File])]] = Def.task {
 		implicit val state = new State(Keys.streams.value.log)
 
-		val (status, messageKeys) = PlayMessagesKeys.checkTask.value
+		val (status, messageKeys) = checkTask.value
 
 		val (generatedObjectPackage, generatedObjectName) = parseGeneratedObject(PlayMessagesKeys.generatedObject.value)
 
 		val generatedObjectFile = (Keys.sourceManaged in Compile).value / (PlayMessagesKeys.generatedObject.value.replace('.', '/') + ".java")
 
 		if (status == NoChange) {
+			state.log.info("generateMessagesObject: NO CHANGE")
 			(status, if (generatedObjectFile.exists) Seq(generatedObjectFile) else Nil)
 		} else if (!PlayMessagesKeys.generateObject.value || messageKeys.isEmpty) {
 			(status, deleteFile(generatedObjectFile))

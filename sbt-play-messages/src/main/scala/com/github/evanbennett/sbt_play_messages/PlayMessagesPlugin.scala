@@ -9,7 +9,7 @@ import sbt._
 
 object PlayMessagesPlugin extends AutoPlugin {
 
-	val BUILD_VERSION = "1.1.0-RC1" // Needs to be in-sync with 'buildVersion' in build.sbt
+	val BUILD_VERSION = "1.1.1-SNAPSHOT" // Needs to be in-sync with 'buildVersion' in build.sbt
 
 	sealed abstract class Status
 	object Statuses {
@@ -20,8 +20,10 @@ object PlayMessagesPlugin extends AutoPlugin {
 
 	object autoImport {
 
-		object PlayMessagesKeys {
+		val checkTask = TaskKey[(Status, Seq[String])]("check-messages", "Check the messages.")
+		val checkAndGenerateTask = TaskKey[(Status, Seq[File])]("generate-messages-object", "Check the messages and generate the object with key references.")
 
+		object PlayMessagesKeys {
 			val requireDefaultMessagesFile = SettingKey[Boolean]("play-messages-require-default-messages-file", "Require a default messages files?")
 			val checkApplicationLanguages = SettingKey[Boolean]("play-messages-check-application-languages", "Check 'application.langs' from 'application.conf' against messages files?")
 			val onNoChangeLoadDefaultMessageKeys = SettingKey[Boolean]("play-messages-on-no-change-load-default-message-keys", "In 'checkTask' load (and return) the default message keys even if there is no change. (For use by SBT Plugins extending this one.)")
@@ -33,9 +35,6 @@ object PlayMessagesPlugin extends AutoPlugin {
 			val checkKeysUsedIgnoreFilenames = SettingKey[Set[String]]("play-messages-check-keys-used-ignore-filenames", "Source code filenames to ignore when checking for use.")
 			val generateObject = SettingKey[Boolean]("play-messages-generate-object", "Generate the object with key references?")
 			val generatedObject = SettingKey[String]("play-messages-generated-object", "The object package and name to generate.")
-
-			val checkTask = TaskKey[(Status, Seq[String])]("play-messages-check-task", "Check the messages.")
-			val checkAndGenerateTask = TaskKey[(Status, Seq[File])]("play-messages-check-and-generate-task", "Check the messages and generate the object with key references.")
 		}
 	}
 	import autoImport._
@@ -43,26 +42,6 @@ object PlayMessagesPlugin extends AutoPlugin {
 	override lazy val requires = play.Play
 
 	override lazy val trigger = allRequirements
-
-	lazy val checkMessages = Command.command("checkMessages") { state =>
-		Project.runTask(PlayMessagesKeys.checkTask, state) match {
-			case Some((state: State, Value((status: Status, _)))) if status != Statuses.Failed =>
-				if (status == Statuses.NoChange) state.log.info("checkMessages: NO CHANGE")
-				state
-			case Some((state: State, _)) => state.fail
-			case None => state.fail
-		}
-	}
-
-	lazy val generateMessagesObject = Command.command("generateMessagesObject") { state =>
-		Project.runTask(PlayMessagesKeys.checkAndGenerateTask, state) match {
-			case Some((state: State, Value((status: Status, _)))) if status != Statuses.Failed =>
-				if (status == Statuses.NoChange) state.log.info("generateMessagesObject: NO CHANGE")
-				state
-			case Some((state: State, _)) => state.fail
-			case None => state.fail
-		}
-	}
 
 	override lazy val projectSettings = Seq(
 		PlayMessagesKeys.requireDefaultMessagesFile := true,
@@ -77,32 +56,30 @@ object PlayMessagesPlugin extends AutoPlugin {
 		PlayMessagesKeys.generateObject := true,
 		PlayMessagesKeys.generatedObject := "conf.Messages",
 
-		PlayMessagesKeys.checkTask := PlayMessages.checkTask.value,
+		checkTask := PlayMessages.checkMessagesTask.value,
 
 		Keys.libraryDependencies += "com.github.evanbennett" %% "play-messages-library" % BUILD_VERSION,
 
-		Keys.sourceGenerators in Compile <+= Def.task(PlayMessagesKeys.checkAndGenerateTask.value._2),
-
-		Keys.commands ++= Seq(checkMessages, generateMessagesObject)
+		Keys.sourceGenerators in Compile <+= Def.task(checkAndGenerateTask.value._2)
 	)
 }
 
-object PlayMessagesPluginScala extends AutoPlugin {
+object PlayMessagesScalaPlugin extends AutoPlugin {
 	import PlayMessagesPlugin.autoImport._
 
 	override lazy val requires = play.PlayScala
 
 	override lazy val trigger = allRequirements
 
-	override lazy val projectSettings = Seq(PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateScalaTask.value)
+	override lazy val projectSettings = Seq(checkAndGenerateTask := PlayMessages.checkAndGenerateScalaTask.value)
 }
 
-object PlayMessagesPluginJava extends AutoPlugin {
+object PlayMessagesJavaPlugin extends AutoPlugin {
 	import PlayMessagesPlugin.autoImport._
 
 	override lazy val requires = play.PlayJava
 
 	override lazy val trigger = allRequirements
 
-	override lazy val projectSettings = Seq(PlayMessagesKeys.checkAndGenerateTask := PlayMessages.checkAndGenerateJavaTask.value)
+	override lazy val projectSettings = Seq(checkAndGenerateTask := PlayMessages.checkAndGenerateJavaTask.value)
 }
